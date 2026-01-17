@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeLog AI - Full Strategy Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .active-nav { background-color: #2563eb; color: white; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade { animation: fadeIn 0.4s ease-out forwards; }
+    </style>
+</head>
+<body class="overflow-hidden">
+    <div id="app" class="flex h-screen overflow-hidden flex-col md:flex-row">
+        
+        <!-- Sidebar -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t md:relative md:border-t-0 md:border-r md:w-72 md:h-screen flex md:flex-col z-50 shadow-sm">
+            <div class="hidden md:flex items-center p-8 border-b">
+                <div class="p-2 bg-blue-600 rounded-xl mr-3"><i data-lucide="trending-up" class="text-white w-5 h-5"></i></div>
+                <h1 class="text-xl font-black text-slate-800 tracking-tight">TradeLog <span class="text-blue-600">AI</span></h1>
+            </div>
+            <div class="flex md:flex-col flex-1 p-3 md:p-5 space-y-0 md:space-y-2">
+                <button onclick="switchTab('dashboard')" class="nav-item flex items-center justify-center md:justify-start p-4 rounded-2xl transition-all flex-1 md:flex-none active-nav" id="nav-dashboard">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    <span class="hidden md:inline ml-4 font-bold text-sm">Dashboard</span>
+                </button>
+                <button onclick="switchTab('add')" class="nav-item flex items-center justify-center md:justify-start p-4 rounded-2xl transition-all flex-1 md:flex-none text-slate-400" id="nav-add">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                    <span class="hidden md:inline ml-4 font-bold text-sm">Vào lệnh</span>
+                </button>
+                <button onclick="switchTab('history')" class="nav-item flex items-center justify-center md:justify-start p-4 rounded-2xl transition-all flex-1 md:flex-none text-slate-400" id="nav-history">
+                    <i data-lucide="history" class="w-5 h-5"></i>
+                    <span class="hidden md:inline ml-4 font-bold text-sm">Lịch sử</span>
+                </button>
+            </div>
+            <div class="hidden md:block p-6 border-t mt-auto">
+                <div class="bg-blue-50 p-4 rounded-2xl">
+                    <p class="text-[10px] font-black text-blue-600 uppercase mb-1">Trạng thái lưu trữ</p>
+                    <p class="text-[11px] font-bold text-slate-500">Toàn bộ dữ liệu lưu tại máy.</p>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Content -->
+        <main class="flex-1 overflow-hidden h-full flex flex-col">
+            <div id="content-area" class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-10 pb-24 h-full">
+                
+                <!-- Dashboard -->
+                <div id="tab-dashboard" class="tab-content max-w-6xl mx-auto space-y-8 animate-fade">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div>
+                            <h2 class="text-3xl font-black text-slate-900">Dashboard</h2>
+                            <p class="text-slate-500 font-medium">Theo dõi hiệu suất giao dịch cá nhân</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="toggleBalanceEdit()" class="bg-white border p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-sm hover:bg-slate-50"><i data-lucide="wallet" size="16"></i> Quản lý vốn</button>
+                            <button onclick="analyzeAI()" class="bg-blue-600 text-white p-3.5 px-6 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xl shadow-blue-200"><i data-lucide="sparkles" size="16"></i> Phân tích AI</button>
+                        </div>
+                    </div>
+
+                    <div id="balance-form" class="hidden bg-blue-50 border border-blue-100 p-6 rounded-3xl flex flex-col md:flex-row gap-4 items-end">
+                        <div class="flex-1 w-full">
+                            <label class="text-[10px] font-black text-blue-500 uppercase mb-2 block tracking-widest">Vốn khởi điểm ($)</label>
+                            <input id="initial-balance-input" type="number" class="w-full p-4 rounded-xl border-none font-black text-lg outline-none" value="1000">
+                        </div>
+                        <button onclick="saveBalance()" class="w-full md:w-auto bg-blue-600 text-white px-8 py-4 rounded-xl text-sm font-black">Lưu vốn</button>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-6 rounded-3xl border shadow-sm">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Số dư thực</p>
+                            <p id="stat-balance" class="text-2xl font-black text-slate-900">$0.00</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border shadow-sm">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">PnL Hôm nay</p>
+                            <p id="stat-daily" class="text-2xl font-black">$0.00</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border shadow-sm">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">PnL Tuần này</p>
+                            <p id="stat-weekly" class="text-2xl font-black">$0.00</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border shadow-sm">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">PnL Tháng này</p>
+                            <p id="stat-monthly" class="text-2xl font-black">$0.00</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 bg-white p-8 rounded-[2rem] border shadow-sm">
+                            <h3 class="text-lg font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="list"></i> Lệnh gần đây</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead class="text-slate-400 border-b">
+                                        <tr>
+                                            <th class="pb-4 text-left font-black uppercase text-[10px]">Cặp</th>
+                                            <th class="pb-4 text-center font-black uppercase text-[10px]">Loại</th>
+                                            <th class="pb-4 text-center font-black uppercase text-[10px]">Trạng thái</th>
+                                            <th class="pb-4 text-right font-black uppercase text-[10px]">PnL ($)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recent-trades-body" class="divide-y"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="bg-white p-8 rounded-[2rem] border shadow-sm flex flex-col items-center justify-center text-center">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Tỉ lệ thắng</p>
+                            <div class="relative w-32 h-32 flex items-center justify-center mb-4">
+                                <svg class="w-full h-full transform -rotate-90">
+                                    <circle cx="64" cy="64" r="58" stroke="#f1f5f9" stroke-width="10" fill="transparent" />
+                                    <circle id="winrate-circle" cx="64" cy="64" r="58" stroke="#2563eb" stroke-width="10" fill="transparent" stroke-dasharray="364.4" stroke-dashoffset="364.4" class="transition-all duration-1000" />
+                                </svg>
+                                <span id="stat-winrate" class="absolute text-2xl font-black">0%</span>
+                            </div>
+                            <p id="stat-count" class="text-xs font-bold text-slate-400">0 Win / 0 Total</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Trade -->
+                <div id="tab-add" class="tab-content hidden max-w-4xl mx-auto animate-fade">
+                    <form id="trade-form" class="bg-white p-8 md:p-12 rounded-[2.5rem] border shadow-xl space-y-10">
+                        <div class="text-center"><h2 class="text-2xl font-black uppercase tracking-widest">Chi tiết kế hoạch giao dịch</h2></div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+                            <!-- Basic Info -->
+                            <div class="space-y-6">
+                                <h3 class="text-sm font-black text-blue-600 flex items-center gap-2"><i data-lucide="info" size="16"></i> THÔNG TIN CƠ BẢN</h3>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase">Tài sản</label>
+                                        <input id="symbol" required placeholder="BTC/USDT" class="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase">Vị thế</label>
+                                        <select id="type" class="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold">
+                                            <option value="LONG">LONG</option>
+                                            <option value="SHORT">SHORT</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase">Vào giá</label>
+                                        <input id="entry" type="number" step="any" required placeholder="0.00" class="w-full p-4 bg-slate-50 rounded-xl font-mono font-bold">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase">Số vốn ($)</label>
+                                        <input id="size" type="number" step="any" required placeholder="100" class="w-full p-4 bg-slate-50 rounded-xl font-mono font-bold">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Management Info -->
+                            <div class="space-y-6">
+                                <h3 class="text-sm font-black text-red-500 flex items-center gap-2"><i data-lucide="shield-check" size="16"></i> QUẢN TRỊ RỦI RO</h3>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase">Stop Loss (SL)</label>
+                                        <input id="sl" type="number" step="any" required placeholder="Dừng lỗ" class="w-full p-4 bg-red-50 text-red-600 rounded-xl font-mono font-bold">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase">Take Profit (TP)</label>
+                                        <input id="tp" type="number" step="any" required placeholder="Chốt lời" class="w-full p-4 bg-green-50 text-green-600 rounded-xl font-mono font-bold">
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-black text-slate-400 uppercase">Lý do đặt SL/TP</label>
+                                    <input id="slTpReason" placeholder="Vùng kháng cự, EMA 200..." class="w-full p-4 bg-slate-50 rounded-xl outline-none font-medium text-sm">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-6 border-t pt-8">
+                            <div class="space-y-4">
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Tâm lý hiện tại</label>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                    <button type="button" onclick="setMindset('Calm')" id="ms-Calm" class="mindset-btn p-3 rounded-xl text-[10px] font-black bg-blue-600 text-white border-2 border-blue-600">Bình tĩnh</button>
+                                    <button type="button" onclick="setMindset('Anxious')" id="ms-Anxious" class="mindset-btn p-3 rounded-xl text-[10px] font-black bg-white text-slate-400 border-2 border-transparent">Lo lắng</button>
+                                    <button type="button" onclick="setMindset('Euphoric')" id="ms-Euphoric" class="mindset-btn p-3 rounded-xl text-[10px] font-black bg-white text-slate-400 border-2 border-transparent">Phấn khích</button>
+                                    <button type="button" onclick="setMindset('Revenge')" id="ms-Revenge" class="mindset-btn p-3 rounded-xl text-[10px] font-black bg-white text-slate-400 border-2 border-transparent">Trả thù</button>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Ghi chú (Setup & Lý do vào lệnh)</label>
+                                <textarea id="entryReason" rows="3" class="w-full p-4 bg-slate-50 rounded-xl outline-none text-sm font-medium" placeholder="Mô tả thiết lập giao dịch của bạn..."></textarea>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-blue-600 text-white p-5 rounded-2xl font-black text-lg shadow-lg hover:bg-blue-700 transition-all active:scale-[0.98]">MỞ LỆNH VÀ LƯU KẾ HOẠCH</button>
+                    </form>
+                </div>
+
+                <!-- History -->
+                <div id="tab-history" class="tab-content hidden max-w-5xl mx-auto space-y-6 animate-fade">
+                    <h2 class="text-2xl font-black mb-6">NHẬT KÝ CHI TIẾT</h2>
+                    <div id="history-container" class="space-y-6 pb-20"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modals -->
+        <div id="ai-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-xl rounded-[2rem] overflow-hidden shadow-2xl">
+                <div class="bg-blue-600 p-6 text-white flex justify-between">
+                    <h3 class="font-black text-lg">PHẢN HỒI AI</h3>
+                    <button onclick="closeModal('ai-modal')">✕</button>
+                </div>
+                <div id="ai-content" class="p-8 max-h-[60vh] overflow-y-auto text-slate-700 leading-relaxed"></div>
+            </div>
+        </div>
+
+        <div id="close-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+            <div class="bg-white w-full max-w-md rounded-[2.5rem] p-10 space-y-6">
+                <h3 class="text-xl font-black">CHỐT LỆNH</h3>
+                <div class="space-y-4">
+                    <input id="close-price" type="number" step="any" placeholder="Giá chốt thực tế" class="w-full p-4 bg-slate-50 rounded-xl font-bold font-mono outline-none">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase">Trạng thái SL/TP?</label>
+                        <div class="flex gap-2">
+                            <button onclick="setWasModified('No')" id="mod-no" class="flex-1 p-3 rounded-xl text-[10px] font-black border-2 border-blue-600 bg-blue-50 text-blue-600">Đúng kế hoạch</button>
+                            <button onclick="setWasModified('Yes')" id="mod-yes" class="flex-1 p-3 rounded-xl text-[10px] font-black border-2 border-transparent bg-slate-50 text-slate-400">Có dời SL/TP</button>
+                        </div>
+                    </div>
+                </div>
+                <button id="confirm-close-btn" class="w-full bg-blue-600 text-white p-4 rounded-xl font-black">XÁC NHẬN CHỐT</button>
+                <button onclick="closeModal('close-modal')" class="w-full text-slate-400 text-xs font-bold">Quay lại</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let trades = JSON.parse(localStorage.getItem('tradelog_trades') || '[]');
+        let initialBalance = parseFloat(localStorage.getItem('tradelog_balance') || '1000');
+        let selectedMindset = 'Calm';
+        let wasModified = 'No';
+        let closingId = null;
+        const apiKey = "";
+
+        function saveData() {
+            localStorage.setItem('tradelog_trades', JSON.stringify(trades));
+            localStorage.setItem('tradelog_balance', initialBalance.toString());
+            renderAll();
+        }
+
+        function calculateStats() {
+            const now = new Date();
+            const startDay = new Date(now.setHours(0,0,0,0));
+            const startWeek = new Date(new Date().setDate(now.getDate() - (now.getDay() || 7) + 1));
+            const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            let total = 0, d = 0, w = 0, m = 0, wins = 0;
+            const closed = trades.filter(t => t.status !== 'OPEN');
+
+            closed.forEach(t => {
+                const timestamp = new Date(t.timestamp);
+                const p = (t.type === 'LONG' ? (t.exitPrice - t.entry) : (t.entry - t.exitPrice)) * t.size;
+                total += p;
+                if (timestamp >= startDay) d += p;
+                if (timestamp >= startWeek) w += p;
+                if (timestamp >= startMonth) m += p;
+                if (t.status === 'WIN') wins++;
+            });
+
+            document.getElementById('stat-balance').innerText = `$${(initialBalance + total).toFixed(2)}`;
+            document.getElementById('stat-daily').innerText = `$${d.toFixed(2)}`;
+            document.getElementById('stat-weekly').innerText = `$${w.toFixed(2)}`;
+            document.getElementById('stat-monthly').innerText = `$${m.toFixed(2)}`;
+            
+            const wr = closed.length ? (wins/closed.length*100).toFixed(1) : 0;
+            document.getElementById('stat-winrate').innerText = wr + '%';
+            document.getElementById('stat-count').innerText = `${wins} Thắng / ${closed.length} Tổng`;
+            document.getElementById('winrate-circle').style.strokeDashoffset = 364.4 - (364.4 * wr / 100);
+        }
+
+        function renderAll() {
+            calculateStats();
+            const sortedTrades = [...trades].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            // Recent Table
+            const body = document.getElementById('recent-trades-body');
+            body.innerHTML = sortedTrades.slice(0, 5).map(t => {
+                const p = t.status === 'OPEN' ? 0 : (t.type === 'LONG' ? (t.exitPrice - t.entry) : (t.entry - t.exitPrice)) * t.size;
+                return `<tr>
+                    <td class="py-4 font-bold">${t.symbol}</td>
+                    <td class="py-4 text-center font-bold ${t.type==='LONG'?'text-green-500':'text-red-500'}">${t.type}</td>
+                    <td class="py-4 text-center">${getStatusBadge(t.status)}</td>
+                    <td class="py-4 text-right font-mono font-bold ${p>0?'text-green-500':p<0?'text-red-500':''}">${t.status==='OPEN'?'--':p.toFixed(2)}</td>
+                </tr>`;
+            }).join('');
+
+            // History Container
+            const history = document.getElementById('history-container');
+            history.innerHTML = sortedTrades.map(t => {
+                const p = t.status === 'OPEN' ? 0 : (t.type === 'LONG' ? (t.exitPrice - t.entry) : (t.entry - t.exitPrice)) * t.size;
+                return `
+                <div class="bg-white p-8 rounded-[2rem] border shadow-sm space-y-4 animate-fade">
+                    <div class="flex flex-col md:flex-row justify-between gap-4">
+                        <div class="flex gap-4">
+                            <div class="p-4 h-fit rounded-2xl ${t.type==='LONG'?'bg-green-50 text-green-600':'bg-red-50 text-red-600'}"><i data-lucide="${t.type==='LONG'?'trending-up':'trending-down'}"></i></div>
+                            <div>
+                                <p class="text-xl font-black">${t.symbol} <span class="text-[10px] text-slate-400 font-bold ml-2">ID: ${t.id.slice(-6)}</span></p>
+                                <p class="text-xs text-slate-400 font-bold">${new Date(t.timestamp).toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            ${getStatusBadge(t.status)}
+                            ${t.status==='OPEN' ? `<button onclick="openClose('${t.id}')" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-xs font-black">CHỐT LỆNH</button>` : `<span class="text-lg font-black ${p >= 0 ? 'text-green-500' : 'text-red-500'}">${p >= 0 ? '+' : ''}${p.toFixed(2)}$</span>`}
+                            <button onclick="deleteTrade('${t.id}')" class="text-slate-300 hover:text-red-500 p-2"><i data-lucide="trash-2" size="18"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl">
+                        <div>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Vào giá</p>
+                            <p class="font-mono font-bold text-sm">${t.entry}</p>
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-bold text-red-400 uppercase">Stop Loss</p>
+                            <p class="font-mono font-bold text-sm text-red-500">${t.sl}</p>
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-bold text-green-400 uppercase">Take Profit</p>
+                            <p class="font-mono font-bold text-sm text-green-600">${t.tp}</p>
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Thoát giá</p>
+                            <p class="font-mono font-bold text-sm">${t.exitPrice || '--'}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 border rounded-xl">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Chiến lược & Lý do SL/TP</p>
+                            <p class="text-xs font-medium">${t.slTpReason || 'Không có thông tin'}</p>
+                        </div>
+                        <div class="p-4 border rounded-xl">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Ghi chú lệnh</p>
+                            <p class="text-xs font-medium">${t.entryReason || 'Không có ghi chú'}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded text-slate-500">Tâm lý: ${t.preMindset}</span>
+                        ${t.wasModified === 'Yes' ? `<span class="text-[9px] font-bold bg-amber-50 px-2 py-1 rounded text-amber-600">Phá kỷ luật SL/TP</span>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function getStatusBadge(s) {
+            const colors = { OPEN: 'bg-blue-50 text-blue-600 border-blue-100', WIN: 'bg-green-50 text-green-600 border-green-100', LOSS: 'bg-red-50 text-red-600 border-red-100', BREAK_EVEN: 'bg-slate-50 text-slate-600 border-slate-100' };
+            return `<span class="text-[10px] font-black px-3 py-1.5 rounded-lg border-2 ${colors[s]||''}">${s}</span>`;
+        }
+
+        function switchTab(t) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${t}`).classList.remove('hidden');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active-nav'));
+            document.getElementById(`nav-${t}`).classList.add('active-nav');
+        }
+
+        document.getElementById('trade-form').onsubmit = (e) => {
+            e.preventDefault();
+            const data = {
+                id: crypto.randomUUID(),
+                symbol: document.getElementById('symbol').value.toUpperCase(),
+                type: document.getElementById('type').value,
+                entry: parseFloat(document.getElementById('entry').value),
+                size: parseFloat(document.getElementById('size').value),
+                sl: parseFloat(document.getElementById('sl').value),
+                tp: parseFloat(document.getElementById('tp').value),
+                slTpReason: document.getElementById('slTpReason').value,
+                preMindset: selectedMindset,
+                entryReason: document.getElementById('entryReason').value,
+                status: 'OPEN',
+                timestamp: new Date().toISOString()
+            };
+            trades.push(data);
+            saveData();
+            e.target.reset();
+            switchTab('history');
+        };
+
+        function deleteTrade(id) { 
+            if(confirm("Bạn có chắc muốn xóa vĩnh viễn lệnh này?")) {
+                trades = trades.filter(t => t.id !== id);
+                saveData();
+            }
+        }
+        
+        function openClose(id) { closingId = id; document.getElementById('close-modal').classList.remove('hidden'); }
+        
+        document.getElementById('confirm-close-btn').onclick = () => {
+            const p = parseFloat(document.getElementById('close-price').value);
+            if(isNaN(p)) return;
+            const idx = trades.findIndex(tr => tr.id === closingId);
+            if (idx === -1) return;
+
+            const t = trades[idx];
+            const prof = (t.type === 'LONG' ? (p - t.entry) : (t.entry - p));
+            const status = prof > 0.001 ? 'WIN' : prof < -0.001 ? 'LOSS' : 'BREAK_EVEN';
+            
+            trades[idx] = { ...t, exitPrice: p, status, wasModified };
+            saveData();
+            closeModal('close-modal');
+        };
+
+        function setMindset(m) {
+            selectedMindset = m;
+            document.querySelectorAll('.mindset-btn').forEach(b => b.className = "mindset-btn p-3 rounded-xl text-[10px] font-black bg-white text-slate-400 border-2 border-transparent");
+            document.getElementById('ms-'+m).className = "mindset-btn p-3 rounded-xl text-[10px] font-black bg-blue-600 text-white border-2 border-blue-600";
+        }
+
+        function setWasModified(v) {
+            wasModified = v;
+            document.getElementById('mod-no').className = v==='No' ? "flex-1 p-3 rounded-xl text-[10px] font-black border-2 border-blue-600 bg-blue-50 text-blue-600" : "flex-1 p-3 rounded-xl text-[10px] font-black border-2 border-transparent bg-slate-50 text-slate-400";
+            document.getElementById('mod-yes').className = v==='Yes' ? "flex-1 p-3 rounded-xl text-[10px] font-black border-2 border-blue-600 bg-blue-50 text-blue-600" : "flex-1 p-3 rounded-xl text-[10px] font-black border-2 border-transparent bg-slate-50 text-slate-400";
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function toggleBalanceEdit() { 
+            document.getElementById('initial-balance-input').value = initialBalance;
+            document.getElementById('balance-form').classList.toggle('hidden'); 
+        }
+        function saveBalance() {
+            const v = parseFloat(document.getElementById('initial-balance-input').value);
+            if (isNaN(v)) return;
+            initialBalance = v;
+            saveData();
+            document.getElementById('balance-form').classList.add('hidden');
+        }
+
+        async function analyzeAI() {
+            const modal = document.getElementById('ai-modal');
+            const content = document.getElementById('ai-content');
+            modal.classList.remove('hidden');
+            content.innerHTML = `<div class="flex items-center gap-3"><div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> Đang đánh giá kỷ luật...</div>`;
+            
+            const prompt = `Phân tích lịch sử trading: ${JSON.stringify(trades.slice(0,10))}. Chú trọng vào việc kỷ luật SL/TP và lý do vào lệnh. Hãy đưa ra 3 lời khuyên cải thiện.`;
+            try {
+                if(!apiKey) {
+                    setTimeout(() => { content.innerHTML = `<div class="text-amber-600 font-bold mb-2">Chế độ ngoại tuyến</div> Cần cấu hình API Key để kích hoạt AI mentor.`; }, 1000);
+                    return;
+                }
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "Bạn là Trading Mentor thực thụ." }] } })
+                });
+                const r = await res.json();
+                content.innerText = r.candidates?.[0]?.content?.parts?.[0]?.text || "Lỗi AI";
+            } catch(e) { content.innerText = "Lỗi kết nối AI."; }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderAll);
+    </script>
+</body>
+</html>
